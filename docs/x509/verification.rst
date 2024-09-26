@@ -111,12 +111,15 @@ the root of trust:
 
     .. versionadded:: 43.0.0
 
+    .. versionchanged:: 44.0.0
+        Made `subjects` optional with the addition of custom extension policies.
+
     .. attribute:: subjects
 
-        :type: list of :class:`~cryptography.x509.GeneralName`
+        :type: list of :class:`~cryptography.x509.GeneralName` or None
 
         The subjects presented in the verified client's Subject Alternative Name
-        extension.
+        extension or `None` if the extension is not present.
 
     .. attribute:: chain
 
@@ -284,6 +287,67 @@ the root of trust:
     .. method:: build_client_verifier()
 
         .. versionadded:: 43.0.0
+
+        Builds a verifier for verifying client certificates.
+
+        .. warning::
+
+            This API is not suitable for website (i.e. server) certificate
+            verification. You **must** use :meth:`build_server_verifier`
+            for server verification.
+
+        :returns: An instance of :class:`ClientVerifier`
+
+.. class:: CustomPolicyBuilder
+
+    .. versionadded:: 44.0.0
+
+    A CustomPolicyBuilder provides a builder-style interface for constructing a
+    Verifier, but provides additional control over the verification policy compared to :class:`PolicyBuilder`.
+
+    .. method:: time(new_time)
+
+        Sets the verifier's verification time.
+
+        If not called explicitly, this is set to :meth:`datetime.datetime.now`
+        when :meth:`build_server_verifier` or :meth:`build_client_verifier`
+        is called.
+
+        :param new_time: The :class:`datetime.datetime` to use in the verifier
+
+        :returns: A new instance of :class:`PolicyBuilder`
+
+    .. method:: store(new_store)
+
+        Sets the verifier's trust store.
+
+        :param new_store: The :class:`Store` to use in the verifier
+
+        :returns: A new instance of :class:`PolicyBuilder`
+
+    .. method:: max_chain_depth(new_max_chain_depth)
+
+        Sets the verifier's maximum chain building depth.
+
+        This depth behaves tracks the length of the intermediate CA
+        chain: a maximum depth of zero means that the leaf must be directly
+        issued by a member of the store, a depth of one means no more than
+        one intermediate CA, and so forth. Note that self-issued intermediates
+        don't count against the chain depth, per RFC 5280.
+
+        :param new_max_chain_depth: The maximum depth to allow in the verifier
+
+        :returns: A new instance of :class:`PolicyBuilder`
+
+    .. method:: build_server_verifier(subject)
+
+        Builds a verifier for verifying server certificates.
+
+        :param subject: A :class:`Subject` to use in the verifier
+
+        :returns: An instance of :class:`ServerVerifier`
+
+    .. method:: build_client_verifier()
 
         Builds a verifier for verifying client certificates.
 
