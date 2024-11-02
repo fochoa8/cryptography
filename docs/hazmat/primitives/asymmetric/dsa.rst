@@ -5,57 +5,56 @@ DSA
 
 .. module:: cryptography.hazmat.primitives.asymmetric.dsa
 
+.. note::
+
+    DSA is a **legacy algorithm** and should generally be avoided in favor of
+    choices like
+    :doc:`EdDSA using curve25519</hazmat/primitives/asymmetric/ed25519>` or
+    :doc:`ECDSA</hazmat/primitives/asymmetric/ec>`.
+
 `DSA`_ is a `public-key`_ algorithm for signing messages.
 
 Generation
 ~~~~~~~~~~
 
-.. function:: generate_private_key(key_size, backend)
+.. function:: generate_private_key(key_size)
 
     .. versionadded:: 0.5
+
+    .. versionchanged:: 3.0
+
+        Added support for 4096-bit keys for some legacy applications that
+        continue to use DSA despite the wider cryptographic community's
+        `ongoing protestations`_.
 
     Generate a DSA private key from the given key size. This function will
     generate a new set of parameters and key in one step.
 
-    :param int key_size: The length of the modulus in bits. It should be
-        either 1024, 2048 or 3072. For keys generated in 2015 this should
-        be `at least 2048`_ (See page 41).  Note that some applications
-        (such as SSH) have not yet gained support for larger key sizes
-        specified in FIPS 186-3 and are still restricted to only the
-        1024-bit keys specified in FIPS 186-2.
-
-    :param backend: An instance of
-        :class:`~cryptography.hazmat.backends.interfaces.DSABackend`.
+    :param int key_size: The length of the modulus in :term:`bits`. It should
+        be either 1024, 2048, 3072, or 4096. For keys generated in 2015 this
+        should be `at least 2048`_ (See page 41).
 
     :return: An instance of
         :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`.
 
-    :raises cryptography.exceptions.UnsupportedAlgorithm: This is raised if
-        the provided ``backend`` does not implement
-        :class:`~cryptography.hazmat.backends.interfaces.DSABackend`
-
-.. function:: generate_parameters(key_size, backend)
+.. function:: generate_parameters(key_size)
 
     .. versionadded:: 0.5
 
-    Generate DSA parameters using the provided ``backend``.
+    .. versionchanged:: 3.0
 
-    :param int key_size: The length of :attr:`~DSAParameterNumbers.q`. It
-        should be either 1024, 2048 or 3072. For keys generated in 2015 this
-        should be `at least 2048`_ (See page 41).  Note that some applications
-        (such as SSH) have not yet gained support for larger key sizes
-        specified in FIPS 186-3 and are still restricted to only the
-        1024-bit keys specified in FIPS 186-2.
+        Added support for 4096-bit keys for some legacy applications that
+        continue to use DSA despite the wider cryptographic community's
+        `ongoing protestations`_.
 
-    :param backend: An instance of
-        :class:`~cryptography.hazmat.backends.interfaces.DSABackend`.
+    Generate DSA parameters.
+
+    :param int key_size: The length of :attr:`~DSAParameterNumbers.p`. It
+        should be either 1024, 2048, 3072, or 4096. For keys generated in 2015
+        this should be `at least 2048`_ (See page 41).
 
     :return: An instance of
         :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAParameters`.
-
-    :raises cryptography.exceptions.UnsupportedAlgorithm: This is raised if
-        the provided ``backend`` does not implement
-        :class:`~cryptography.hazmat.backends.interfaces.DSABackend`
 
 Signing
 ~~~~~~~
@@ -65,22 +64,11 @@ instance.
 
 .. doctest::
 
-    >>> from cryptography.hazmat.backends import default_backend
     >>> from cryptography.hazmat.primitives import hashes
     >>> from cryptography.hazmat.primitives.asymmetric import dsa
     >>> private_key = dsa.generate_private_key(
     ...     key_size=1024,
-    ...     backend=default_backend()
     ... )
-    >>> signer = private_key.signer(hashes.SHA256())
-    >>> data = b"this is some data I'd like to sign"
-    >>> signer.update(data)
-    >>> signature = signer.finalize()
-
-There is a shortcut to sign sufficiently short messages directly:
-
-.. doctest::
-
     >>> data = b"this is some data I'd like to sign"
     >>> signature = private_key.sign(
     ...     data,
@@ -90,6 +78,23 @@ There is a shortcut to sign sufficiently short messages directly:
 The ``signature`` is a ``bytes`` object, whose contents is DER encoded as
 described in :rfc:`3279`. This can be decoded using
 :func:`~cryptography.hazmat.primitives.asymmetric.utils.decode_dss_signature`.
+
+If your data is too large to be passed in a single call, you can hash it
+separately and pass that value using
+:class:`~cryptography.hazmat.primitives.asymmetric.utils.Prehashed`.
+
+.. doctest::
+
+    >>> from cryptography.hazmat.primitives.asymmetric import utils
+    >>> chosen_hash = hashes.SHA256()
+    >>> hasher = hashes.Hash(chosen_hash)
+    >>> hasher.update(b"data & ")
+    >>> hasher.update(b"more data")
+    >>> digest = hasher.finalize()
+    >>> sig = private_key.sign(
+    ...     digest,
+    ...     utils.Prehashed(chosen_hash)
+    ... )
 
 Verification
 ~~~~~~~~~~~~
@@ -106,25 +111,34 @@ You can get a public key object with
 .. doctest::
 
     >>> public_key = private_key.public_key()
-    >>> verifier = public_key.verifier(signature, hashes.SHA256())
-    >>> verifier.update(data)
-    >>> verifier.verify()
-
-There is a shortcut to verify sufficiently short messages directly:
-
-.. doctest::
-
     >>> public_key.verify(
     ...     signature,
     ...     data,
     ...     hashes.SHA256()
     ... )
 
-``verifier()`` takes the signature in the same format as is returned by
-``signer.finalize()``.
+``verify()`` takes the signature in the same format as is returned by
+``sign()``.
 
 ``verify()`` will raise an :class:`~cryptography.exceptions.InvalidSignature`
 exception if the signature isn't valid.
+
+If your data is too large to be passed in a single call, you can hash it
+separately and pass that value using
+:class:`~cryptography.hazmat.primitives.asymmetric.utils.Prehashed`.
+
+.. doctest::
+
+    >>> chosen_hash = hashes.SHA256()
+    >>> hasher = hashes.Hash(chosen_hash)
+    >>> hasher.update(b"data & ")
+    >>> hasher.update(b"more data")
+    >>> digest = hasher.finalize()
+    >>> public_key.verify(
+    ...     sig,
+    ...     digest,
+    ...     utils.Prehashed(chosen_hash)
+    ... )
 
 Numbers
 ~~~~~~~
@@ -153,10 +167,7 @@ Numbers
 
         The generator.
 
-    .. method:: parameters(backend)
-
-        :param backend: An instance of
-            :class:`~cryptography.hazmat.backends.interfaces.DSABackend`.
+    .. method:: parameters()
 
         :returns: A new instance of
             :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAParameters`.
@@ -180,10 +191,7 @@ Numbers
         The :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAParameterNumbers`
         associated with the public key.
 
-    .. method:: public_key(backend)
-
-        :param backend: An instance of
-            :class:`~cryptography.hazmat.backends.interfaces.DSABackend`.
+    .. method:: public_key()
 
         :returns: A new instance of
             :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicKey`.
@@ -212,10 +220,7 @@ Numbers
         The :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPublicNumbers`
         associated with the private key.
 
-    .. method:: private_key(backend)
-
-        :param backend: An instance of
-            :class:`~cryptography.hazmat.backends.interfaces.DSABackend`.
+    .. method:: private_key()
 
         :returns: A new instance of
             :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`.
@@ -238,13 +243,6 @@ Key interfaces
 
         :return: An instance of
             :class:`~cryptography.hazmat.primitives.asymmetric.dsa.DSAPrivateKey`.
-
-
-.. class:: DSAParametersWithNumbers
-
-    .. versionadded:: 0.5
-
-    Extends :class:`DSAParameters`.
 
     .. method:: parameter_numbers()
 
@@ -275,23 +273,6 @@ Key interfaces
 
         The DSAParameters object associated with this private key.
 
-    .. method:: signer(algorithm, backend)
-
-        .. versionadded:: 0.4
-
-        Sign data which can be verified later by others using the public key.
-        The signature is formatted as DER-encoded bytes, as specified in
-        :rfc:`3279`.
-
-        :param algorithm: An instance of
-            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`.
-
-        :param backend: An instance of
-            :class:`~cryptography.hazmat.backends.interfaces.DSABackend`.
-
-        :returns:
-            :class:`~cryptography.hazmat.primitives.asymmetric.AsymmetricSignatureContext`
-
     .. attribute:: key_size
 
         :type: int
@@ -301,23 +282,22 @@ Key interfaces
     .. method:: sign(data, algorithm)
 
         .. versionadded:: 1.5
+        .. versionchanged:: 1.6
+            :class:`~cryptography.hazmat.primitives.asymmetric.utils.Prehashed`
+            can now be used as an ``algorithm``.
 
         Sign one block of data which can be verified later by others using the
         public key.
 
-        :param bytes data: The message string to sign.
+        :param data: The message string to sign.
+        :type data: :term:`bytes-like`
 
         :param algorithm: An instance of
-            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`.
+            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm` or
+            :class:`~cryptography.hazmat.primitives.asymmetric.utils.Prehashed`
+            if the ``data`` you want to sign has already been hashed.
 
         :return bytes: Signature.
-
-
-.. class:: DSAPrivateKeyWithSerialization
-
-    .. versionadded:: 0.8
-
-    Extends :class:`DSAPrivateKey`.
 
     .. method:: private_numbers()
 
@@ -335,7 +315,7 @@ Key interfaces
         :attr:`~cryptography.hazmat.primitives.serialization.Encoding.PEM` or
         :attr:`~cryptography.hazmat.primitives.serialization.Encoding.DER`),
         format (
-        :attr:`~cryptography.hazmat.primitives.serialization.PrivateFormat.TraditionalOpenSSL`
+        :attr:`~cryptography.hazmat.primitives.serialization.PrivateFormat.TraditionalOpenSSL`,
         or
         :attr:`~cryptography.hazmat.primitives.serialization.PrivateFormat.PKCS8`)
         and encryption algorithm (such as
@@ -375,25 +355,6 @@ Key interfaces
 
         The DSAParameters object associated with this public key.
 
-    .. method:: verifier(signature, algorithm, backend)
-
-        .. versionadded:: 0.4
-
-        Verify data was signed by the private key associated with this public
-        key.
-
-        :param bytes signature: The signature to verify. DER encoded as
-            specified in :rfc:`3279`.
-
-        :param algorithm: An instance of
-            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`.
-
-        :param backend: An instance of
-            :class:`~cryptography.hazmat.backends.interfaces.DSABackend`.
-
-        :returns:
-            :class:`~cryptography.hazmat.primitives.asymmetric.AsymmetricVerificationContext`
-
     .. method:: public_numbers()
 
         Create a
@@ -424,29 +385,31 @@ Key interfaces
     .. method:: verify(signature, data, algorithm)
 
         .. versionadded:: 1.5
+        .. versionchanged:: 1.6
+            :class:`~cryptography.hazmat.primitives.asymmetric.utils.Prehashed`
+            can now be used as an ``algorithm``.
 
         Verify one block of data was signed by the private key
         associated with this public key.
 
-        :param bytes signature: The signature to verify.
+        :param signature: The signature to verify.
+        :type signature: :term:`bytes-like`
 
-        :param bytes data: The message string that was signed.
+        :param data: The message string that was signed.
+        :type data: :term:`bytes-like`
 
         :param algorithm: An instance of
-            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`.
+            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm` or
+            :class:`~cryptography.hazmat.primitives.asymmetric.utils.Prehashed`
+            if the ``data`` you want to sign has already been hashed.
 
+        :returns: None
         :raises cryptography.exceptions.InvalidSignature: If the signature does
             not validate.
 
 
-.. class:: DSAPublicKeyWithSerialization
-
-    .. versionadded:: 0.8
-
-    Alias for :class:`DSAPublicKey`.
-
-
 .. _`DSA`: https://en.wikipedia.org/wiki/Digital_Signature_Algorithm
 .. _`public-key`: https://en.wikipedia.org/wiki/Public-key_cryptography
-.. _`FIPS 186-4`: http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf
-.. _`at least 2048`: http://www.ecrypt.eu.org/ecrypt2/documents/D.SPA.20.pdf
+.. _`FIPS 186-4`: https://csrc.nist.gov/publications/detail/fips/186/4/final
+.. _`at least 2048`: https://www.cosic.esat.kuleuven.be/ecrypt/ecrypt2/documents/D.SPA.20.pdf
+.. _`ongoing protestations`: https://words.filippo.io/dispatches/dsa/

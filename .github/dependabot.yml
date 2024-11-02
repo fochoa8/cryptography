@@ -1,0 +1,35 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"
+      - "/.github/actions/*/"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 1024
+
+  - package-ecosystem: cargo
+    directory: "/src/rust/"
+    schedule:
+      interval: daily
+      time: "06:00"
+      timezone: "America/New_York"
+    allow:
+      # Also update indirect dependencies
+      - dependency-type: all
+    open-pull-requests-limit: 1024
+
+  - package-ecosystem: pip
+    directories:
+      - "/"
+      - "/.github/requirements/"
+    schedule:
+      interval: daily
+      time: "06:00"
+      timezone: "America/New_York"
+    allow:
+      # Also update indirect dependencies
+      - dependency-type: all
+    open-pull-requests-limit: 1024

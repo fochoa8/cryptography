@@ -2,18 +2,83 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 import os
 
 import pytest
 
-from cryptography.hazmat.backends.interfaces import CipherBackend
+from cryptography.exceptions import AlreadyFinalized, _Reasons
+from cryptography.hazmat.bindings._rust import openssl as rust_openssl
 from cryptography.hazmat.primitives.ciphers import algorithms, base, modes
 
-from .utils import generate_aead_test, generate_encrypt_test
-from ...utils import load_nist_vectors
+from ...doubles import DummyMode
+from ...utils import load_nist_vectors, raises_unsupported_algorithm
+from .utils import _load_all_params, generate_encrypt_test
+
+
+@pytest.mark.supported(
+    only_if=lambda backend: backend.cipher_supported(
+        algorithms.AES(b"\x00" * 32), modes.XTS(b"\x00" * 16)
+    ),
+    skip_message="Does not support AES XTS",
+)
+class TestAESModeXTS:
+    def test_xts_vectors(self, backend, subtests):
+        # This list comprehension excludes any vector that does not have a
+        # data unit length that is divisible by 8. The NIST vectors include
+        # tests for implementations that support encryption of data that is
+        # not divisible modulo 8, but OpenSSL is not such an implementation.
+        vectors = [
+            x
+            for x in _load_all_params(
+                os.path.join("ciphers", "AES", "XTS", "tweak-128hexstr"),
+                ["XTSGenAES128.rsp", "XTSGenAES256.rsp"],
+                load_nist_vectors,
+            )
+            if int(x["dataunitlen"]) / 8.0 == int(x["dataunitlen"]) // 8
+        ]
+        for vector in vectors:
+            with subtests.test():
+                key = binascii.unhexlify(vector["key"])
+                tweak = binascii.unhexlify(vector["i"])
+                pt = binascii.unhexlify(vector["pt"])
+                ct = binascii.unhexlify(vector["ct"])
+                cipher = base.Cipher(
+                    algorithms.AES(key), modes.XTS(tweak), backend
+                )
+                enc = cipher.encryptor()
+                computed_ct = enc.update(pt) + enc.finalize()
+                assert computed_ct == ct
+                dec = cipher.decryptor()
+                computed_pt = dec.update(ct) + dec.finalize()
+                assert computed_pt == pt
+
+    def test_xts_too_short(self, backend):
+        key = b"thirty_two_byte_keys_are_great!!"
+        tweak = b"\x00" * 16
+        cipher = base.Cipher(algorithms.AES(key), modes.XTS(tweak))
+        enc = cipher.encryptor()
+        with pytest.raises(ValueError):
+            enc.update(b"0" * 15)
+
+    @pytest.mark.supported(
+        only_if=lambda backend: not rust_openssl.CRYPTOGRAPHY_IS_LIBRESSL,
+        skip_message="duplicate key encryption error added in OpenSSL 1.1.1d",
+    )
+    def test_xts_no_duplicate_keys_encryption(self, backend):
+        key = bytes(range(16)) * 2
+        tweak = b"\x00" * 16
+        cipher = base.Cipher(algorithms.AES(key), modes.XTS(tweak))
+        with pytest.raises(ValueError, match="duplicated keys"):
+            cipher.encryptor()
+
+    def test_xts_unsupported_with_aes128_aes256_classes(self):
+        with pytest.raises(TypeError):
+            base.Cipher(algorithms.AES128(b"0" * 16), modes.XTS(b"\x00" * 16))
+
+        with pytest.raises(TypeError):
+            base.Cipher(algorithms.AES256(b"0" * 32), modes.XTS(b"\x00" * 16))
 
 
 @pytest.mark.supported(
@@ -22,9 +87,8 @@ from ...utils import load_nist_vectors
     ),
     skip_message="Does not support AES CBC",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-class TestAESModeCBC(object):
-    test_CBC = generate_encrypt_test(
+class TestAESModeCBC:
+    test_cbc = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "CBC"),
         [
@@ -51,13 +115,12 @@ class TestAESModeCBC(object):
 
 @pytest.mark.supported(
     only_if=lambda backend: backend.cipher_supported(
-        algorithms.AES("\x00" * 16), modes.ECB()
+        algorithms.AES(b"\x00" * 16), modes.ECB()
     ),
     skip_message="Does not support AES ECB",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-class TestAESModeECB(object):
-    test_ECB = generate_encrypt_test(
+class TestAESModeECB:
+    test_ecb = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "ECB"),
         [
@@ -88,9 +151,8 @@ class TestAESModeECB(object):
     ),
     skip_message="Does not support AES OFB",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-class TestAESModeOFB(object):
-    test_OFB = generate_encrypt_test(
+class TestAESModeOFB:
+    test_ofb = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "OFB"),
         [
@@ -121,9 +183,8 @@ class TestAESModeOFB(object):
     ),
     skip_message="Does not support AES CFB",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-class TestAESModeCFB(object):
-    test_CFB = generate_encrypt_test(
+class TestAESModeCFB:
+    test_cfb = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "CFB"),
         [
@@ -154,9 +215,8 @@ class TestAESModeCFB(object):
     ),
     skip_message="Does not support AES CFB8",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-class TestAESModeCFB8(object):
-    test_CFB8 = generate_encrypt_test(
+class TestAESModeCFB8:
+    test_cfb8 = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "CFB"),
         [
@@ -187,9 +247,8 @@ class TestAESModeCFB8(object):
     ),
     skip_message="Does not support AES CTR",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-class TestAESModeCTR(object):
-    test_CTR = generate_encrypt_test(
+class TestAESModeCTR:
+    test_ctr = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "AES", "CTR"),
         ["aes-128-ctr.txt", "aes-192-ctr.txt", "aes-256-ctr.txt"],
@@ -198,108 +257,110 @@ class TestAESModeCTR(object):
     )
 
 
-@pytest.mark.supported(
-    only_if=lambda backend: backend.cipher_supported(
-        algorithms.AES(b"\x00" * 16), modes.GCM(b"\x00" * 12)
-    ),
-    skip_message="Does not support AES GCM",
+@pytest.mark.parametrize(
+    "mode",
+    [
+        modes.CBC(bytearray(b"\x00" * 16)),
+        modes.CTR(bytearray(b"\x00" * 16)),
+        modes.OFB(bytearray(b"\x00" * 16)),
+        modes.CFB(bytearray(b"\x00" * 16)),
+        modes.CFB8(bytearray(b"\x00" * 16)),
+        modes.XTS(bytearray(b"\x00" * 16)),
+        # Add a dummy mode for coverage of the cipher_supported check.
+        DummyMode(),
+    ],
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
-class TestAESModeGCM(object):
-    test_GCM = generate_aead_test(
-        load_nist_vectors,
-        os.path.join("ciphers", "AES", "GCM"),
-        [
-            "gcmDecrypt128.rsp",
-            "gcmDecrypt192.rsp",
-            "gcmDecrypt256.rsp",
-            "gcmEncryptExtIV128.rsp",
-            "gcmEncryptExtIV192.rsp",
-            "gcmEncryptExtIV256.rsp",
-        ],
-        algorithms.AES,
-        modes.GCM,
+def test_buffer_protocol_alternate_modes(mode, backend):
+    data = bytearray(b"sixteen_byte_msg")
+    key = algorithms.AES(bytearray(os.urandom(32)))
+    if not backend.cipher_supported(key, mode):
+        pytest.skip(f"AES in {mode.name} mode not supported")
+    cipher = base.Cipher(key, mode, backend)
+    enc = cipher.encryptor()
+    ct = enc.update(data) + enc.finalize()
+    dec = cipher.decryptor()
+    pt = dec.update(ct) + dec.finalize()
+    assert pt == data
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        modes.ECB(),
+        modes.CBC(bytearray(b"\x00" * 16)),
+        modes.CTR(bytearray(b"\x00" * 16)),
+        modes.OFB(bytearray(b"\x00" * 16)),
+        modes.CFB(bytearray(b"\x00" * 16)),
+        modes.CFB8(bytearray(b"\x00" * 16)),
+    ],
+)
+@pytest.mark.parametrize("alg_cls", [algorithms.AES128, algorithms.AES256])
+def test_alternate_aes_classes(mode, alg_cls, backend):
+    alg = alg_cls(b"0" * (alg_cls.key_size // 8))
+    if not backend.cipher_supported(alg, mode):
+        pytest.skip(f"AES in {mode.name} mode not supported")
+    data = bytearray(b"sixteen_byte_msg")
+    cipher = base.Cipher(alg, mode, backend)
+    enc = cipher.encryptor()
+    ct = enc.update(data) + enc.finalize()
+    dec = cipher.decryptor()
+    pt = dec.update(ct) + dec.finalize()
+    assert pt == data
+
+
+def test_reset_nonce(backend):
+    data = b"helloworld" * 10
+    nonce = b"\x00" * 16
+    nonce_alt = b"\xee" * 16
+    cipher = base.Cipher(
+        algorithms.AES(b"\x00" * 16),
+        modes.CTR(nonce),
     )
+    cipher_alt = base.Cipher(
+        algorithms.AES(b"\x00" * 16),
+        modes.CTR(nonce_alt),
+    )
+    enc = cipher.encryptor()
+    ct1 = enc.update(data)
+    assert len(ct1) == len(data)
+    for _ in range(2):
+        enc.reset_nonce(nonce)
+        assert enc.update(data) == ct1
+    # Reset the nonce to a different value
+    # and check it matches with a different context
+    enc_alt = cipher_alt.encryptor()
+    ct2 = enc_alt.update(data)
+    enc.reset_nonce(nonce_alt)
+    assert enc.update(data) == ct2
+    enc_alt.finalize()
+    enc.finalize()
+    with pytest.raises(AlreadyFinalized):
+        enc.reset_nonce(nonce)
+    dec = cipher.decryptor()
+    assert dec.update(ct1) == data
+    for _ in range(2):
+        dec.reset_nonce(nonce)
+        assert dec.update(ct1) == data
+    # Reset the nonce to a different value
+    # and check it matches with a different context
+    dec_alt = cipher_alt.decryptor()
+    dec.reset_nonce(nonce_alt)
+    assert dec.update(ct2) == dec_alt.update(ct2)
+    dec_alt.finalize()
+    dec.finalize()
+    with pytest.raises(AlreadyFinalized):
+        dec.reset_nonce(nonce)
 
-    def test_gcm_tag_with_only_aad(self, backend):
-        key = binascii.unhexlify(b"5211242698bed4774a090620a6ca56f3")
-        iv = binascii.unhexlify(b"b1e1349120b6e832ef976f5d")
-        aad = binascii.unhexlify(b"b6d729aab8e6416d7002b9faa794c410d8d2f193")
-        tag = binascii.unhexlify(b"0f247e7f9c2505de374006738018493b")
 
-        cipher = base.Cipher(
-            algorithms.AES(key),
-            modes.GCM(iv),
-            backend=backend
-        )
-        encryptor = cipher.encryptor()
-        encryptor.authenticate_additional_data(aad)
-        encryptor.finalize()
-        assert encryptor.tag == tag
-
-    def test_gcm_ciphertext_with_no_aad(self, backend):
-        key = binascii.unhexlify(b"e98b72a9881a84ca6b76e0f43e68647a")
-        iv = binascii.unhexlify(b"8b23299fde174053f3d652ba")
-        ct = binascii.unhexlify(b"5a3c1cf1985dbb8bed818036fdd5ab42")
-        tag = binascii.unhexlify(b"23c7ab0f952b7091cd324835043b5eb5")
-        pt = binascii.unhexlify(b"28286a321293253c3e0aa2704a278032")
-
-        cipher = base.Cipher(
-            algorithms.AES(key),
-            modes.GCM(iv),
-            backend=backend
-        )
-        encryptor = cipher.encryptor()
-        computed_ct = encryptor.update(pt) + encryptor.finalize()
-        assert computed_ct == ct
-        assert encryptor.tag == tag
-
-    def test_gcm_ciphertext_limit(self, backend):
-        encryptor = base.Cipher(
-            algorithms.AES(b"\x00" * 16),
-            modes.GCM(b"\x01" * 16),
-            backend=backend
-        ).encryptor()
-        encryptor._bytes_processed = modes.GCM._MAX_ENCRYPTED_BYTES - 16
-        encryptor.update(b"0" * 16)
-        assert (
-            encryptor._bytes_processed == modes.GCM._MAX_ENCRYPTED_BYTES
-        )
-        with pytest.raises(ValueError):
-            encryptor.update(b"0")
-
-    def test_gcm_aad_limit(self, backend):
-        encryptor = base.Cipher(
-            algorithms.AES(b"\x00" * 16),
-            modes.GCM(b"\x01" * 16),
-            backend=backend
-        ).encryptor()
-        encryptor._aad_bytes_processed = modes.GCM._MAX_AAD_BYTES - 16
-        encryptor.authenticate_additional_data(b"0" * 16)
-        assert encryptor._aad_bytes_processed == modes.GCM._MAX_AAD_BYTES
-        with pytest.raises(ValueError):
-            encryptor.authenticate_additional_data(b"0")
-
-    def test_gcm_ciphertext_increments(self, backend):
-        encryptor = base.Cipher(
-            algorithms.AES(b"\x00" * 16),
-            modes.GCM(b"\x01" * 16),
-            backend=backend
-        ).encryptor()
-        encryptor.update(b"0" * 8)
-        assert encryptor._bytes_processed == 8
-        encryptor.update(b"0" * 7)
-        assert encryptor._bytes_processed == 15
-        encryptor.update(b"0" * 18)
-        assert encryptor._bytes_processed == 33
-
-    def test_gcm_aad_increments(self, backend):
-        encryptor = base.Cipher(
-            algorithms.AES(b"\x00" * 16),
-            modes.GCM(b"\x01" * 16),
-            backend=backend
-        ).encryptor()
-        encryptor.authenticate_additional_data(b"0" * 8)
-        assert encryptor._aad_bytes_processed == 8
-        encryptor.authenticate_additional_data(b"0" * 18)
-        assert encryptor._aad_bytes_processed == 26
+def test_reset_nonce_invalid_mode(backend):
+    iv = b"\x00" * 16
+    c = base.Cipher(
+        algorithms.AES(b"\x00" * 16),
+        modes.CBC(iv),
+    )
+    enc = c.encryptor()
+    with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_CIPHER):
+        enc.reset_nonce(iv)
+    dec = c.decryptor()
+    with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_CIPHER):
+        dec.reset_nonce(iv)

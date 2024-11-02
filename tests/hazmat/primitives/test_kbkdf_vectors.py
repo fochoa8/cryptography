@@ -2,22 +2,16 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import os
 
-import pytest
-
-from cryptography.hazmat.backends.interfaces import HMACBackend
-
-from .utils import generate_kbkdf_counter_mode_test
 from ...utils import load_nist_kbkdf_vectors
+from .utils import generate_kbkdf_counter_mode_test
 
 
-@pytest.mark.requires_backend_interface(interface=HMACBackend)
-class TestCounterKDFCounterMode(object):
-    test_HKDFSHA1 = generate_kbkdf_counter_mode_test(
+class TestCounterKDFCounterMode:
+    test_kbkdfctr = generate_kbkdf_counter_mode_test(
         load_nist_kbkdf_vectors,
         os.path.join("KDF"),
-        ["nist-800-108-KBKDF-CTR.txt"]
+        ["nist-800-108-KBKDF-CTR.txt"],
     )

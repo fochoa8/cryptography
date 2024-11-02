@@ -1,0 +1,78 @@
+name: Bump BoringSSL and/or OpenSSL
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run daily
+    - cron: "0 0 * * *"
+
+jobs:
+  bump:
+    if: github.repository_owner == 'pyca'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Needed so we can push back to the repo
+          persist-credentials: true
+      - id: check-sha-boring
+        run: |
+          SHA=$(git ls-remote https://boringssl.googlesource.com/boringssl refs/heads/master | cut -f1)
+          LAST_COMMIT=$(grep boringssl .github/workflows/ci.yml | grep TYPE | grep -oE '[a-f0-9]{40}')
+          if ! grep -q "$SHA" .github/workflows/ci.yml; then
+            echo "COMMIT_SHA=${SHA}" >> $GITHUB_OUTPUT
+            echo "COMMIT_MSG<<EOF" >> $GITHUB_OUTPUT
+            echo -e "## BoringSSL\n[Commit: ${SHA}](https://boringssl.googlesource.com/boringssl/+/${SHA})\n\n[Diff](https://boringssl.googlesource.com/boringssl/+/${LAST_COMMIT}..${SHA}) between the last commit hash merged to this repository and the new commit." >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+
+          fi
+      - id: check-sha-openssl
+        run: |
+          SHA=$(git ls-remote https://github.com/openssl/openssl refs/heads/master | cut -f1)
+          LAST_COMMIT=$(grep openssl .github/workflows/ci.yml | grep TYPE | grep -oE '[a-f0-9]{40}')
+          if ! grep -q "$SHA" .github/workflows/ci.yml; then
+            echo "COMMIT_SHA=${SHA}" >> $GITHUB_OUTPUT
+            echo "COMMIT_MSG<<EOF" >> $GITHUB_OUTPUT
+            echo -e "## OpenSSL\n[Commit: ${SHA}](https://github.com/openssl/openssl/commit/${SHA})\n\n[Diff](https://github.com/openssl/openssl/compare/${LAST_COMMIT}...${SHA}) between the last commit hash merged to this repository and the new commit." >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      - name: Update boring
+        run: |
+          set -xe
+          CURRENT_DATE=$(date "+%b %d, %Y")
+          sed -E -i "s/Latest commit on the BoringSSL master branch.*/Latest commit on the BoringSSL master branch, as of ${CURRENT_DATE}./" .github/workflows/ci.yml
+          sed -E -i "s/TYPE: \"boringssl\", VERSION: \"[0-9a-f]{40}\"/TYPE: \"boringssl\", VERSION: \"${COMMIT_SHA}\"/" .github/workflows/ci.yml
+          git status
+        if: steps.check-sha-boring.outputs.COMMIT_SHA
+        env:
+          COMMIT_SHA: ${{ steps.check-sha-boring.outputs.COMMIT_SHA }}
+      - name: Update OpenSSL
+        run: |
+          set -xe
+          CURRENT_DATE=$(date "+%b %d, %Y")
+          sed -E -i "s/Latest commit on the OpenSSL master branch.*/Latest commit on the OpenSSL master branch, as of ${CURRENT_DATE}./" .github/workflows/ci.yml
+          sed -E -i "s/TYPE: \"openssl\", VERSION: \"[0-9a-f]{40}\"/TYPE: \"openssl\", VERSION: \"${COMMIT_SHA}\"/" .github/workflows/ci.yml
+          git status
+        if: steps.check-sha-openssl.outputs.COMMIT_SHA
+        env:
+          COMMIT_SHA: ${{ steps.check-sha-openssl.outputs.COMMIT_SHA }}
+      - uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+        id: generate-token
+        with:
+          app_id: ${{ secrets.BORINGBOT_APP_ID }}
+          private_key: ${{ secrets.BORINGBOT_PRIVATE_KEY }}
+        if: steps.check-sha-boring.outputs.COMMIT_SHA || steps.check-sha-openssl.outputs.COMMIT_SHA
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
+        with:
+          branch: "bump-openssl-boringssl"
+          commit-message: "Bump BoringSSL and/or OpenSSL in CI"
+          title: "Bump BoringSSL and/or OpenSSL in CI"
+          author: "pyca-boringbot[bot] <pyca-boringbot[bot]+106132319@users.noreply.github.com>"
+          body: |
+            ${{ steps.check-sha-boring.outputs.COMMIT_MSG }}
+            ${{ steps.check-sha-openssl.outputs.COMMIT_MSG }}
+          token: ${{ steps.generate-token.outputs.token }}
+        if: steps.check-sha-boring.outputs.COMMIT_SHA || steps.check-sha-openssl.outputs.COMMIT_SHA

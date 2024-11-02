@@ -2,28 +2,22 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 
 import pytest
 
-from cryptography.exceptions import (
-    AlreadyFinalized, InvalidKey, _Reasons
-)
-from cryptography.hazmat.backends.interfaces import HMACBackend
-from cryptography.hazmat.backends.interfaces import HashBackend
+from cryptography.exceptions import AlreadyFinalized, InvalidKey
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.concatkdf import ConcatKDFHMAC
-from cryptography.hazmat.primitives.kdf.concatkdf import ConcatKDFHash
+from cryptography.hazmat.primitives.kdf.concatkdf import (
+    ConcatKDFHash,
+    ConcatKDFHMAC,
+)
 
-from ...utils import raises_unsupported_algorithm
 
-
-@pytest.mark.requires_backend_interface(interface=HashBackend)
-class TestConcatKDFHash(object):
+class TestConcatKDFHash:
     def test_length_limit(self, backend):
-        big_length = hashes.SHA256().digest_size * (2 ** 32 - 1) + 1
+        big_length = hashes.SHA256().digest_size * (2**32 - 1) + 1
 
         with pytest.raises(ValueError):
             ConcatKDFHash(hashes.SHA256(), big_length, None, backend)
@@ -52,6 +46,22 @@ class TestConcatKDFHash(object):
 
         assert ckdf.derive(prk) == okm
 
+    def test_buffer_protocol(self, backend):
+        prk = binascii.unhexlify(
+            b"52169af5c485dcc2321eb8d26d5efa21fb9b93c98e38412ee2484cf14f0d0d23"
+        )
+
+        okm = binascii.unhexlify(b"1c3bc9e7c4547c5191c0d478cccaed55")
+
+        oinfo = binascii.unhexlify(
+            b"a1b2c3d4e53728157e634612c12d6d5223e204aeea4341565369647bd184bcd2"
+            b"46f72971f292badaa2fe4124612cba"
+        )
+
+        ckdf = ConcatKDFHash(hashes.SHA256(), 16, oinfo, backend)
+
+        assert ckdf.derive(bytearray(prk)) == okm
+
     def test_verify(self, backend):
         prk = binascii.unhexlify(
             b"52169af5c485dcc2321eb8d26d5efa21fb9b93c98e38412ee2484cf14f0d0d23"
@@ -66,7 +76,7 @@ class TestConcatKDFHash(object):
 
         ckdf = ConcatKDFHash(hashes.SHA256(), 16, oinfo, backend)
 
-        assert ckdf.verify(prk, okm) is None
+        ckdf.verify(prk, okm)
 
     def test_invalid_verify(self, backend):
         prk = binascii.unhexlify(
@@ -88,45 +98,35 @@ class TestConcatKDFHash(object):
             ConcatKDFHash(
                 hashes.SHA256(),
                 16,
-                otherinfo=u"foo",
-                backend=backend
+                otherinfo="foo",  # type: ignore[arg-type]
+                backend=backend,
             )
 
         with pytest.raises(TypeError):
             ckdf = ConcatKDFHash(
-                hashes.SHA256(),
-                16,
-                otherinfo=None,
-                backend=backend
+                hashes.SHA256(), 16, otherinfo=None, backend=backend
             )
 
-            ckdf.derive(u"foo")
+            ckdf.derive("foo")  # type: ignore[arg-type]
 
         with pytest.raises(TypeError):
             ckdf = ConcatKDFHash(
-                hashes.SHA256(),
-                16,
-                otherinfo=None,
-                backend=backend
+                hashes.SHA256(), 16, otherinfo=None, backend=backend
             )
 
-            ckdf.verify(u"foo", b"bar")
+            ckdf.verify("foo", b"bar")  # type: ignore[arg-type]
 
         with pytest.raises(TypeError):
             ckdf = ConcatKDFHash(
-                hashes.SHA256(),
-                16,
-                otherinfo=None,
-                backend=backend
+                hashes.SHA256(), 16, otherinfo=None, backend=backend
             )
 
-            ckdf.verify(b"foo", u"bar")
+            ckdf.verify(b"foo", "bar")  # type: ignore[arg-type]
 
 
-@pytest.mark.requires_backend_interface(interface=HMACBackend)
-class TestConcatKDFHMAC(object):
+class TestConcatKDFHMAC:
     def test_length_limit(self, backend):
-        big_length = hashes.SHA256().digest_size * (2 ** 32 - 1) + 1
+        big_length = hashes.SHA256().digest_size * (2**32 - 1) + 1
 
         with pytest.raises(ValueError):
             ConcatKDFHMAC(hashes.SHA256(), big_length, None, None, backend)
@@ -146,8 +146,10 @@ class TestConcatKDFHMAC(object):
             b"8f0af7fce1d045edbc5790931e8d5ca79c73"
         )
 
-        okm = binascii.unhexlify(b"64ce901db10d558661f10b6836a122a7"
-                                 b"605323ce2f39bf27eaaac8b34cf89f2f")
+        okm = binascii.unhexlify(
+            b"64ce901db10d558661f10b6836a122a7"
+            b"605323ce2f39bf27eaaac8b34cf89f2f"
+        )
 
         oinfo = binascii.unhexlify(
             b"a1b2c3d4e55e600be5f367e0e8a465f4bf2704db00c9325c"
@@ -158,6 +160,27 @@ class TestConcatKDFHMAC(object):
 
         assert ckdf.derive(prk) == okm
 
+    def test_buffer_protocol(self, backend):
+        prk = binascii.unhexlify(
+            b"013951627c1dea63ea2d7702dd24e963eef5faac6b4af7e4"
+            b"b831cde499dff1ce45f6179f741c728aa733583b02409208"
+            b"8f0af7fce1d045edbc5790931e8d5ca79c73"
+        )
+
+        okm = binascii.unhexlify(
+            b"64ce901db10d558661f10b6836a122a7"
+            b"605323ce2f39bf27eaaac8b34cf89f2f"
+        )
+
+        oinfo = binascii.unhexlify(
+            b"a1b2c3d4e55e600be5f367e0e8a465f4bf2704db00c9325c"
+            b"9fbd216d12b49160b2ae5157650f43415653696421e68e"
+        )
+
+        ckdf = ConcatKDFHMAC(hashes.SHA512(), 32, None, oinfo, backend)
+
+        assert ckdf.derive(bytearray(prk)) == okm
+
     def test_derive_explicit_salt(self, backend):
         prk = binascii.unhexlify(
             b"013951627c1dea63ea2d7702dd24e963eef5faac6b4af7e4"
@@ -165,8 +188,10 @@ class TestConcatKDFHMAC(object):
             b"8f0af7fce1d045edbc5790931e8d5ca79c73"
         )
 
-        okm = binascii.unhexlify(b"64ce901db10d558661f10b6836a122a7"
-                                 b"605323ce2f39bf27eaaac8b34cf89f2f")
+        okm = binascii.unhexlify(
+            b"64ce901db10d558661f10b6836a122a7"
+            b"605323ce2f39bf27eaaac8b34cf89f2f"
+        )
 
         oinfo = binascii.unhexlify(
             b"a1b2c3d4e55e600be5f367e0e8a465f4bf2704db00c9325c"
@@ -186,8 +211,10 @@ class TestConcatKDFHMAC(object):
             b"8f0af7fce1d045edbc5790931e8d5ca79c73"
         )
 
-        okm = binascii.unhexlify(b"64ce901db10d558661f10b6836a122a7"
-                                 b"605323ce2f39bf27eaaac8b34cf89f2f")
+        okm = binascii.unhexlify(
+            b"64ce901db10d558661f10b6836a122a7"
+            b"605323ce2f39bf27eaaac8b34cf89f2f"
+        )
 
         oinfo = binascii.unhexlify(
             b"a1b2c3d4e55e600be5f367e0e8a465f4bf2704db00c9325c"
@@ -196,7 +223,7 @@ class TestConcatKDFHMAC(object):
 
         ckdf = ConcatKDFHMAC(hashes.SHA512(), 32, None, oinfo, backend)
 
-        assert ckdf.verify(prk, okm) is None
+        ckdf.verify(prk, okm)
 
     def test_invalid_verify(self, backend):
         prk = binascii.unhexlify(
@@ -219,54 +246,49 @@ class TestConcatKDFHMAC(object):
         with pytest.raises(TypeError):
             ConcatKDFHMAC(
                 hashes.SHA256(),
-                16, salt=u"foo",
+                16,
+                salt="foo",  # type: ignore[arg-type]
                 otherinfo=None,
-                backend=backend
+                backend=backend,
             )
 
         with pytest.raises(TypeError):
             ConcatKDFHMAC(
                 hashes.SHA256(),
-                16, salt=None,
-                otherinfo=u"foo",
-                backend=backend
+                16,
+                salt=None,
+                otherinfo="foo",  # type: ignore[arg-type]
+                backend=backend,
             )
 
         with pytest.raises(TypeError):
             ckdf = ConcatKDFHMAC(
-                hashes.SHA256(),
-                16, salt=None,
-                otherinfo=None,
-                backend=backend
+                hashes.SHA256(), 16, salt=None, otherinfo=None, backend=backend
             )
 
-            ckdf.derive(u"foo")
+            ckdf.derive("foo")  # type: ignore[arg-type]
 
         with pytest.raises(TypeError):
             ckdf = ConcatKDFHMAC(
-                hashes.SHA256(),
-                16, salt=None,
-                otherinfo=None,
-                backend=backend
+                hashes.SHA256(), 16, salt=None, otherinfo=None, backend=backend
             )
 
-            ckdf.verify(u"foo", b"bar")
+            ckdf.verify("foo", b"bar")  # type: ignore[arg-type]
 
         with pytest.raises(TypeError):
             ckdf = ConcatKDFHMAC(
-                hashes.SHA256(),
-                16, salt=None,
-                otherinfo=None,
-                backend=backend
+                hashes.SHA256(), 16, salt=None, otherinfo=None, backend=backend
             )
 
-            ckdf.verify(b"foo", u"bar")
+            ckdf.verify(b"foo", "bar")  # type: ignore[arg-type]
 
-
-def test_invalid_backend():
-    pretend_backend = object()
-
-    with raises_unsupported_algorithm(_Reasons.BACKEND_MISSING_INTERFACE):
-        ConcatKDFHash(hashes.SHA256(), 16, None, pretend_backend)
-    with raises_unsupported_algorithm(_Reasons.BACKEND_MISSING_INTERFACE):
-        ConcatKDFHMAC(hashes.SHA256(), 16, None, None, pretend_backend)
+    def test_unsupported_hash_algorithm(self, backend):
+        # ConcatKDF requires a hash algorithm with an internal block size.
+        with pytest.raises(TypeError):
+            ConcatKDFHMAC(
+                hashes.SHA3_256(),
+                16,
+                salt=None,
+                otherinfo=None,
+                backend=backend,
+            )

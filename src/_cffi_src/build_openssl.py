@@ -2,40 +2,18 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 import os
+import pathlib
+import platform
 import sys
 
-from _cffi_src.utils import (
-    build_ffi_for_binding, compiler_type, extra_link_args
-)
+# Add the src directory to the path so we can import _cffi_src.utils
+src_dir = str(pathlib.Path(__file__).parent.parent)
+sys.path.insert(0, src_dir)
 
-
-def _get_openssl_libraries(platform):
-    # OpenSSL goes by a different library name on different operating systems.
-    if platform == "darwin":
-        return _osx_libraries(
-            os.environ.get("CRYPTOGRAPHY_OSX_NO_LINK_FLAGS")
-        )
-    elif platform == "win32":
-        return ["libeay32", "ssleay32", "advapi32",
-                "crypt32", "gdi32", "user32", "ws2_32"]
-    else:
-        # In some circumstances, the order in which these libs are
-        # specified on the linker command-line is significant;
-        # libssl must come before libcrypto
-        # (http://marc.info/?l=openssl-users&m=135361825921871)
-        return ["ssl", "crypto"]
-
-
-def _osx_libraries(build_static):
-    # For building statically we don't want to pass the -lssl or -lcrypto flags
-    if build_static == "1":
-        return []
-    else:
-        return ["ssl", "crypto"]
-
+from _cffi_src.utils import build_ffi_for_binding  # noqa: E402
 
 ffi = build_ffi_for_binding(
     module_name="_openssl",
@@ -43,30 +21,20 @@ ffi = build_ffi_for_binding(
     modules=[
         # This goes first so we can define some cryptography-wide symbols.
         "cryptography",
-
-        "aes",
         "asn1",
         "bignum",
         "bio",
-        "cmac",
-        "cms",
-        "conf",
         "crypto",
         "dh",
         "dsa",
         "ec",
-        "ecdh",
-        "ecdsa",
         "engine",
         "err",
         "evp",
-        "hmac",
         "nid",
         "objects",
-        "ocsp",
         "opensslv",
         "pem",
-        "pkcs12",
         "rand",
         "rsa",
         "ssl",
@@ -74,9 +42,19 @@ ffi = build_ffi_for_binding(
         "x509name",
         "x509v3",
         "x509_vfy",
-        "pkcs7",
-        "callbacks",
     ],
-    libraries=_get_openssl_libraries(sys.platform),
-    extra_link_args=extra_link_args(compiler_type()),
 )
+
+if __name__ == "__main__":
+    out_dir = os.environ["OUT_DIR"]
+    module_name, source, source_extension, kwds = ffi._assigned_source
+    c_file = os.path.join(out_dir, module_name + source_extension)
+    if platform.python_implementation() == "PyPy":
+        # Necessary because CFFI will ignore this if there's no declarations.
+        ffi.embedding_api(
+            """
+            extern "Python" void Cryptography_unused(void);
+        """
+        )
+        ffi.embedding_init_code("")
+    ffi.emit_c_code(c_file)

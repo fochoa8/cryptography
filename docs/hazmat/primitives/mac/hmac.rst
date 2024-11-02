@@ -1,7 +1,7 @@
 .. hazmat::
 
-Hash-based message authentication codes
-=======================================
+Hash-based message authentication codes (HMAC)
+==============================================
 
 .. currentmodule:: cryptography.hazmat.primitives.hmac
 
@@ -15,7 +15,7 @@ message authentication codes using a cryptographic hash function coupled with a
 secret key. You can use an HMAC to verify both the integrity and authenticity
 of a message.
 
-.. class:: HMAC(key, algorithm, backend)
+.. class:: HMAC(key, algorithm)
 
     HMAC objects take a ``key`` and a
     :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm` instance.
@@ -27,16 +27,13 @@ of a message.
 
     .. doctest::
 
-        >>> from cryptography.hazmat.backends import default_backend
         >>> from cryptography.hazmat.primitives import hashes, hmac
-        >>> h = hmac.HMAC(key, hashes.SHA256(), backend=default_backend())
+        >>> key = b'test key. Beware! A real key should use os.urandom or TRNG to generate'
+        >>> h = hmac.HMAC(key, hashes.SHA256())
         >>> h.update(b"message to hash")
-        >>> h.finalize()
-        '#F\xdaI\x8b"e\xc4\xf1\xbb\x9a\x8fc\xff\xf5\xdex.\xbc\xcd/+\x8a\x86\x1d\x84\'\xc3\xa6\x1d\xd8J'
-
-    If the backend doesn't support the requested ``algorithm`` an
-    :class:`~cryptography.exceptions.UnsupportedAlgorithm` exception will be
-    raised.
+        >>> signature = h.finalize()
+        >>> signature
+        b'k\xd9\xb29\xefS\xf8\xcf\xec\xed\xbf\x95\xe6\x97X\x18\x9e%\x11DU1\x9fq}\x9a\x9c\xe0)y`='
 
     If ``algorithm`` isn't a
     :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm` instance
@@ -47,29 +44,30 @@ of a message.
 
     .. doctest::
 
-        >>> h = hmac.HMAC(key, hashes.SHA256(), backend=default_backend())
+        >>> h = hmac.HMAC(key, hashes.SHA256())
         >>> h.update(b"message to hash")
-        >>> h.verify(b"an incorrect signature")
+        >>> h_copy = h.copy() # get a copy of `h' to be reused
+        >>> h.verify(signature)
+        >>>
+        >>> h_copy.verify(b"an incorrect signature")
         Traceback (most recent call last):
         ...
         cryptography.exceptions.InvalidSignature: Signature did not match digest.
 
-    :param bytes key: Secret key as ``bytes``.
+    :param key: The secret key.
+    :type key: :term:`bytes-like`
     :param algorithm: An
         :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`
         instance such as those described in
         :ref:`Cryptographic Hashes <cryptographic-hash-algorithms>`.
-    :param backend: An
-        :class:`~cryptography.hazmat.backends.interfaces.HMACBackend`
-        instance.
 
     :raises cryptography.exceptions.UnsupportedAlgorithm: This is raised if the
-        provided ``backend`` does not implement
-        :class:`~cryptography.hazmat.backends.interfaces.HMACBackend`
+        provided ``algorithm`` isn't supported.
 
     .. method:: update(msg)
 
-        :param bytes msg: The bytes to hash and authenticate.
+        :param msg: The bytes to hash and authenticate.
+        :type msg: :term:`bytes-like`
         :raises cryptography.exceptions.AlreadyFinalized: See :meth:`finalize`
         :raises TypeError: This exception is raised if ``msg`` is not ``bytes``.
 

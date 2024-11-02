@@ -1,8 +1,0 @@
-clint
-coverage
-invoke
-requests
-tox
-twine
--e .[test,docstest,pep8test]
--e vectors

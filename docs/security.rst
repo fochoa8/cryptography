@@ -5,6 +5,21 @@ We take the security of ``cryptography`` seriously. The following are a set of
 policies we have adopted to ensure that security issues are addressed in a
 timely fashion.
 
+Known vulnerabilities
+---------------------
+
+A list of all known vulnerabilities in ``cryptography`` can be found on
+`osv.dev`_, as well as other ecosystem vulnerability databases. They can
+automatically be scanned for using tools such as `pip-audit`_ or `osv-scan`_.
+
+Infrastructure
+--------------
+
+In addition to ``cryptography``'s code, we're also concerned with the security
+of the infrastructure we run (primarily ``cryptography.io``).  If you discover
+a security vulnerability in our infrastructure, we ask you to report it using
+the same procedure.
+
 What is a security issue?
 -------------------------
 
@@ -36,7 +51,7 @@ Examples of things we wouldn't consider security issues:
 
 In general, if you're unsure, we request that you to default to treating things
 as security issues and handling them sensitively, the worst thing that can
-happen is that we'll ask you to file a bug issue.
+happen is that we'll ask you to file a public issue.
 
 Reporting a security issue
 --------------------------
@@ -44,29 +59,26 @@ Reporting a security issue
 We ask that you do not report security issues to our normal GitHub issue
 tracker.
 
-If you believe you've identified a security issue with ``cryptography``, please
-report it to ``alex.gaynor@gmail.com``. Messages may be optionally encrypted
-with PGP using key fingerprint
-``F7FC 698F AAE2 D2EF BECD  E98E D1B3 ADC0 E023 8CA6`` (this public key is
-available from most commonly-used key servers).
+If you believe you've identified a security issue with ``cryptography``,
+please report it via our `security advisory page`_.
 
-Once you've submitted an issue via email, you should receive an acknowledgment
-within 48 hours, and depending on the action to be taken, you may receive
-further follow-up emails.
+Once you've submitted an issue, you should receive an acknowledgment within 48
+hours, and depending on the action to be taken, you may receive further
+follow-up.
 
 Supported Versions
 ------------------
 
-At any given time, we will provide security support for the `master`_ branch
+At any given time, we will provide security support for the `main`_ branch
 as well as the most recent release.
 
 New releases for OpenSSL updates
 --------------------------------
 
-As of version 0.5, ``cryptography`` statically links OpenSSL on Windows, and as
-of version 1.0.1 on OS X, to ease installation. Due to this, ``cryptography``
-will release a new version whenever OpenSSL has a security or bug fix release to
-avoid shipping insecure software.
+As of versions 0.5, 1.0.1, and 2.0.0, ``cryptography`` statically links OpenSSL
+in binary distributions for Windows, macOS, and Linux respectively, to ease
+installation. Due to this, ``cryptography`` will release a new version whenever
+OpenSSL has a security or bug fix release to avoid shipping insecure software.
 
 Like all our other releases, this will be announced on the mailing list and we
 strongly recommend that you upgrade as soon as possible.
@@ -74,42 +86,16 @@ strongly recommend that you upgrade as soon as possible.
 Disclosure Process
 ------------------
 
-Our process for taking a security issue from private discussion to public
-disclosure involves multiple steps.
+When we become aware of a security bug in ``cryptography``, we will endeavor to
+fix it and issue a release as quickly as possible. We will generally issue a new
+release for any security issue.
 
-Approximately one week before full public disclosure, we will send advance
-notification of the issue to a list of people and organizations, primarily
-composed of operating-system vendors and other distributors of
-``cryptography``.  This notification will consist of an email message
-containing:
+The steps for issuing a security release are described in our
+:doc:`/doing-a-release` documentation.
 
-* A full description of the issue and the affected versions of
-  ``cryptography``.
-* The steps we will be taking to remedy the issue.
-* The patches, if any, that will be applied to ``cryptography``.
-* The date on which the ``cryptography`` team will apply these patches, issue
-  new releases, and publicly disclose the issue.
 
-Simultaneously, the reporter of the issue will receive notification of the date
-on which we plan to take the issue public.
-
-On the day of disclosure, we will take the following steps:
-
-* Apply the relevant patches to the ``cryptography`` repository. The commit
-  messages for these patches will indicate that they are for security issues,
-  but will not describe the issue in any detail; instead, they will warn of
-  upcoming disclosure.
-* Issue the relevant releases.
-* Post a notice to the cryptography mailing list that describes the issue in
-  detail, point to the new release and crediting the reporter of the issue.
-
-If a reported issue is believed to be particularly time-sensitive – due to a
-known exploit in the wild, for example – the time between advance notification
-and public disclosure may be shortened considerably.
-
-The list of people and organizations who receives advanced notification of
-security issues is not and will not be made public. This list generally
-consists of high profile downstream distributors and is entirely at the
-discretion of the ``cryptography`` team.
-
-.. _`master`: https://github.com/pyca/cryptography
+.. _`osv.dev`: https://osv.dev/list?ecosystem=PyPI&q=cryptography
+.. _`pip-audit`: https://pypi.org/project/pip-audit/
+.. _`osv-scan`: https://google.github.io/osv-scanner/
+.. _`security advisory page`: https://github.com/pyca/cryptography/security/advisories/new
+.. _`main`: https://github.com/pyca/cryptography

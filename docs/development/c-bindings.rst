@@ -5,7 +5,7 @@ C bindings are bindings to C libraries, using cffi_ whenever possible.
 
 .. _cffi: https://cffi.readthedocs.io
 
-Bindings live in :py:mod:`cryptography.hazmat.bindings`.
+Bindings live in ``cryptography.hazmat.bindings``.
 
 When modifying the bindings you will need to recompile the C extensions to
 test the changes. This can be accomplished with ``pip install -e .`` in the
@@ -88,9 +88,10 @@ Adding constant, types, functions...
 
 You can create bindings for any name that exists in some version of
 the library you're binding against. However, the project also has to
-keep supporting older versions of the library. In order to achieve
-this, binding modules have ``CUSTOMIZATIONS`` and
-``CONDITIONAL_NAMES`` constants.
+keep supporting older versions of the library. In order to achieve this,
+binding modules have a ``CUSTOMIZATIONS`` constant, and there is a
+``CONDITIONAL_NAMES`` constants in
+``src/cryptography/hazmat/bindings/openssl/_conditional.py``.
 
 Let's say you want to enable quantum transmogrification. The upstream
 library implements this as the following API::
@@ -127,9 +128,7 @@ opaque struct::
         ...;
     } QM_TRANSMOGRIFICATION_CTX;
 
-Confusingly, functions that aren't always available on all supported
-versions of the library, should be defined in ``MACROS`` and *not* in
-``FUNCTIONS``. Fortunately, you just have to copy the signature::
+For functions just add the signature to ``FUNCTIONS``::
 
     int QM_transmogrify(QM_TRANSMOGRIFICATION_CTX *, int);
 
@@ -168,14 +167,21 @@ the necessarily type definitions are in place.
 Finally, add an entry to ``CONDITIONAL_NAMES`` with all of the things
 you want to conditionally export::
 
-    CONDITIONAL_NAMES = {
-        ...
-        "Cryptography_HAS_QUANTUM_TRANSMOGRIFICATION": [
+    def cryptography_has_quantum_transmogrification():
+        return [
             "QM_TRANSMOGRIFICATION_ALIGNMENT_LEFT",
             "QM_TRANSMOGRIFICATION_ALIGNMENT_RIGHT",
-            "QM_transmogrify"
+            "QM_transmogrify",
         ]
+
+
+    CONDITIONAL_NAMES = {
+        ...
+        "Cryptography_HAS_QUANTUM_TRANSMOGRIFICATION": (
+            cryptography_has_quantum_transmogrification
+        ),
     }
+
 
 Caveats
 ~~~~~~~
@@ -183,9 +189,9 @@ Caveats
 Sometimes, a set of loosely related features are added in the same
 version, and it's impractical to create ``#ifdef`` statements for each
 one. In that case, it may make sense to either check for a particular
-version. For example, to check for OpenSSL 1.0.0 or newer::
+version. For example, to check for OpenSSL 1.1.1 or newer::
 
-    #if OPENSSL_VERSION_NUMBER >= 0x10000000L
+    #if CRYPTOGRAPHY_OPENSSL_111_OR_GREATER
 
 Sometimes, the version of a library on a particular platform will have
 features that you thought it wouldn't, based on its version.

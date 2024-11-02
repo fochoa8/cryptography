@@ -1,0 +1,19 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "cryptography_vectors"
+version = "44.0.0.dev1"
+authors = [
+    {name = "The Python Cryptographic Authority and individual contributors", email = "cryptography-dev@python.org"}
+]
+description = "Test vectors for the cryptography package."
+readme = "README.rst"
+license = {text = "Apache-2.0 OR BSD-3-Clause"}
+
+[project.urls]
+homepage = "https://github.com/pyca/cryptography"
+
+[tool.flit.sdist]
+include = ["LICENSE", "LICENSE.APACHE", "LICENSE.BSD"]

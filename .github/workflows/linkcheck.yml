@@ -1,0 +1,45 @@
+name: linkcheck
+on:
+  pull_request:
+    paths:
+      - docs/conf.py
+      - .github/workflows/linkcheck.yml
+  schedule:
+    # Run once a week on Fridays
+    - cron: "0 0 * * FRI"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  docs-linkcheck:
+    runs-on: ubuntu-latest
+    name: "linkcheck"
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Setup python
+        id: setup-python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: 3.11
+      - name: Cache rust and pip
+        uses: ./.github/actions/cache
+        timeout-minutes: 2
+        with:
+          # This creates the same key as the docs job (as long as they have the same
+          # python version)
+          key: 3.11-${{ steps.setup-python.outputs.python-version }}
+      - run: python -m pip install -c ci-constraints-requirements.txt nox
+      - name: Build nox environment
+        run: |
+            nox -v --install-only -s docs-linkcheck
+        env:
+          CARGO_TARGET_DIR: ${{ format('{0}/src/rust/target/', github.workspace) }}
+      - name: linkcheck
+        run: nox --no-install -s docs-linkcheck -- --color=yes

@@ -2,30 +2,34 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
-INCLUDES = """
-#include <openssl/opensslv.h>
-/*
-    LibreSSL removed e_os2.h from the public headers so we'll only include it
-    if we're using vanilla OpenSSL.
-*/
-#if !defined(LIBRESSL_VERSION_NUMBER)
-#include <openssl/e_os2.h>
-#endif
+INCLUDES = r"""
+/* define our OpenSSL API compatibility level to 1.1.0. Any symbols older than
+   that will raise an error during compilation. */
+#define OPENSSL_API_COMPAT 0x10100000L
+
 #if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
+#include <Wincrypt.h>
+#include <Winsock2.h>
+/*
+    undef some macros that are defined by wincrypt.h but are also types in
+    boringssl. openssl has worked around this but boring has not yet. see:
+    https://chromium.googlesource.com/chromium/src/+/refs/heads/main/base
+    /win/wincrypt_shim.h
+*/
+#undef X509_NAME
+#undef X509_EXTENSIONS
+#undef PKCS7_SIGNER_INFO
 #endif
 
-#define CRYPTOGRAPHY_OPENSSL_101_OR_GREATER \
-    (OPENSSL_VERSION_NUMBER >= 0x10001000)
-#define CRYPTOGRAPHY_OPENSSL_102_OR_GREATER \
-    (OPENSSL_VERSION_NUMBER >= 0x10002000)
-#define CRYPTOGRAPHY_OPENSSL_102BETA2_OR_GREATER \
-    (OPENSSL_VERSION_NUMBER >= 0x10002002)
-#define CRYPTOGRAPHY_OPENSSL_110_OR_GREATER \
-    (OPENSSL_VERSION_NUMBER >= 0x10100000)
+#include <openssl/opensslv.h>
 
+<<<<<<< HEAD
 #define CRYPTOGRAPHY_OPENSSL_LESS_THAN_101 \
     (OPENSSL_VERSION_NUMBER < 0x10001000)
 #define CRYPTOGRAPHY_OPENSSL_LESS_THAN_102 \
@@ -38,15 +42,28 @@ INCLUDES = """
     (OPENSSL_VERSION_NUMBER < 0x10100000)
 #define CRYPTOGRAPHY_OPENSSL_LESS_THAN_110PRE5 \
     (OPENSSL_VERSION_NUMBER < 0x10100005)
+=======
+>>>>>>> main
 
 #if defined(LIBRESSL_VERSION_NUMBER)
 #define CRYPTOGRAPHY_IS_LIBRESSL 1
 #else
 #define CRYPTOGRAPHY_IS_LIBRESSL 0
 #endif
+
+#if defined(OPENSSL_IS_BORINGSSL)
+#define CRYPTOGRAPHY_IS_BORINGSSL 1
+#else
+#define CRYPTOGRAPHY_IS_BORINGSSL 0
+#endif
+
+#if OPENSSL_VERSION_NUMBER < 0x10101050
+    #error "pyca/cryptography MUST be linked with Openssl 1.1.1e or later"
+#endif
 """
 
 TYPES = """
+<<<<<<< HEAD
 static const int CRYPTOGRAPHY_OPENSSL_101_OR_GREATER;
 
 static const int CRYPTOGRAPHY_OPENSSL_110_OR_GREATER;
@@ -56,12 +73,11 @@ static const int CRYPTOGRAPHY_OPENSSL_LESS_THAN_101;
 static const int CRYPTOGRAPHY_OPENSSL_LESS_THAN_102I;
 
 static const int CRYPTOGRAPHY_IS_LIBRESSL;
+=======
+>>>>>>> main
 """
 
 FUNCTIONS = """
-"""
-
-MACROS = """
 """
 
 CUSTOMIZATIONS = """

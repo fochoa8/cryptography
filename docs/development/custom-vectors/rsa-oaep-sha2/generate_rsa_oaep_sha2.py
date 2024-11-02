@@ -2,16 +2,12 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
-
 import binascii
 import itertools
 import os
 
-from cryptography.hazmat.backends.openssl.backend import backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
-
 from tests.utils import load_pkcs1_vectors, load_vectors_from_file
 
 
@@ -26,32 +22,32 @@ def build_vectors(mgf1alg, hashalg, filename):
         # small. Instead we parse the vectors for the test cases, then
         # generate our own 2048-bit keys for each.
         private, _ = vector
-        skey = rsa.generate_private_key(65537, 2048, backend)
+        skey = rsa.generate_private_key(65537, 2048)
         pn = skey.private_numbers()
         examples = private["examples"]
-        output.append(b"# =============================================")
-        output.append(b"# Example")
-        output.append(b"# Public key")
-        output.append(b"# Modulus:")
+        output.append("# =============================================")
+        output.append("# Example")
+        output.append("# Public key")
+        output.append("# Modulus:")
         output.append(format(pn.public_numbers.n, "x"))
-        output.append(b"# Exponent:")
+        output.append("# Exponent:")
         output.append(format(pn.public_numbers.e, "x"))
-        output.append(b"# Private key")
-        output.append(b"# Modulus:")
+        output.append("# Private key")
+        output.append("# Modulus:")
         output.append(format(pn.public_numbers.n, "x"))
-        output.append(b"# Public exponent:")
+        output.append("# Public exponent:")
         output.append(format(pn.public_numbers.e, "x"))
-        output.append(b"# Exponent:")
+        output.append("# Exponent:")
         output.append(format(pn.d, "x"))
-        output.append(b"# Prime 1:")
+        output.append("# Prime 1:")
         output.append(format(pn.p, "x"))
-        output.append(b"# Prime 2:")
+        output.append("# Prime 2:")
         output.append(format(pn.q, "x"))
-        output.append(b"# Prime exponent 1:")
+        output.append("# Prime exponent 1:")
         output.append(format(pn.dmp1, "x"))
-        output.append(b"# Prime exponent 2:")
+        output.append("# Prime exponent 2:")
         output.append(format(pn.dmq1, "x"))
-        output.append(b"# Coefficient:")
+        output.append("# Coefficient:")
         output.append(format(pn.iqmp, "x"))
         pkey = skey.public_key()
         vectorkey = rsa.RSAPrivateNumbers(
@@ -62,10 +58,9 @@ def build_vectors(mgf1alg, hashalg, filename):
             dmq1=private["dmq1"],
             iqmp=private["iqmp"],
             public_numbers=rsa.RSAPublicNumbers(
-                e=private["public_exponent"],
-                n=private["modulus"]
-            )
-        ).private_key(backend)
+                e=private["public_exponent"], n=private["modulus"]
+            ),
+        ).private_key()
         count = 1
 
         for example in examples:
@@ -74,8 +69,8 @@ def build_vectors(mgf1alg, hashalg, filename):
                 padding.OAEP(
                     mgf=padding.MGF1(algorithm=hashes.SHA1()),
                     algorithm=hashes.SHA1(),
-                    label=None
-                )
+                    label=None,
+                ),
             )
             assert message == binascii.unhexlify(example["message"])
             ct = pkey.encrypt(
@@ -83,26 +78,26 @@ def build_vectors(mgf1alg, hashalg, filename):
                 padding.OAEP(
                     mgf=padding.MGF1(algorithm=mgf1alg),
                     algorithm=hashalg,
-                    label=None
-                )
+                    label=None,
+                ),
             )
             output.append(
-                b"# OAEP Example {0} alg={1} mgf1={2}".format(
-                    count, hashalg.name, mgf1alg.name
-                )
+                f"# OAEP Example {count} alg={hashalg.name} "
+                f"mgf1={mgf1alg.name}"
             )
             count += 1
-            output.append(b"# Message:")
-            output.append(example["message"])
-            output.append(b"# Encryption:")
-            output.append(binascii.hexlify(ct))
+            output.append("# Message:")
+            output.append(example["message"].decode("utf-8"))
+            output.append("# Encryption:")
+            output.append(binascii.hexlify(ct).decode("utf-8"))
 
-    return b"\n".join(output)
+    return "\n".join(output)
 
 
 def write_file(data, filename):
     with open(filename, "w") as f:
         f.write(data)
+
 
 oaep_path = os.path.join(
     "asymmetric", "RSA", "pkcs-1v2-1d2-vec", "oaep-vect.txt"
@@ -115,13 +110,12 @@ hashalgs = [
     hashes.SHA512(),
 ]
 for hashtuple in itertools.product(hashalgs, hashalgs):
-    if (
-        isinstance(hashtuple[0], hashes.SHA1) and
-        isinstance(hashtuple[1], hashes.SHA1)
+    if isinstance(hashtuple[0], hashes.SHA1) and isinstance(
+        hashtuple[1], hashes.SHA1
     ):
         continue
 
     write_file(
         build_vectors(hashtuple[0], hashtuple[1], oaep_path),
-        "oaep-{0}-{1}.txt".format(hashtuple[0].name, hashtuple[1].name)
+        f"oaep-{hashtuple[0].name}-{hashtuple[1].name}.txt",
     )

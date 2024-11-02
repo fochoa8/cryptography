@@ -2,7 +2,7 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 INCLUDES = """
 #include <openssl/opensslv.h>
@@ -16,9 +16,6 @@ static const char *const OPENSSL_VERSION_TEXT;
 """
 
 FUNCTIONS = """
-"""
-
-MACROS = """
 """
 
 CUSTOMIZATIONS = """

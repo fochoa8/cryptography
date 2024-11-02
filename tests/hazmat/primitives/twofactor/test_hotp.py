@@ -2,33 +2,26 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import os
 
 import pytest
 
-from cryptography.exceptions import _Reasons
-from cryptography.hazmat.backends.interfaces import HMACBackend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.hashes import MD5, SHA1
 from cryptography.hazmat.primitives.twofactor import InvalidToken
 from cryptography.hazmat.primitives.twofactor.hotp import HOTP
 
-from ....utils import (
-    load_nist_vectors, load_vectors_from_file, raises_unsupported_algorithm
-)
+from ....utils import load_nist_vectors, load_vectors_from_file
 
-vectors = load_vectors_from_file(
-    "twofactor/rfc-4226.txt", load_nist_vectors)
+vectors = load_vectors_from_file("twofactor/rfc-4226.txt", load_nist_vectors)
 
 
 @pytest.mark.supported(
     only_if=lambda backend: backend.hmac_supported(hashes.SHA1()),
-    skip_message="Does not support HMAC-SHA1."
+    skip_message="Does not support HMAC-SHA1.",
 )
-@pytest.mark.requires_backend_interface(interface=HMACBackend)
-class TestHOTP(object):
+class TestHOTP:
     def test_invalid_key_length(self, backend):
         secret = os.urandom(10)
 
@@ -49,7 +42,7 @@ class TestHOTP(object):
         secret = os.urandom(16)
 
         with pytest.raises(TypeError):
-            HOTP(secret, 6, MD5(), backend)
+            HOTP(secret, 6, MD5(), backend)  # type: ignore[arg-type]
 
     @pytest.mark.parametrize("params", vectors)
     def test_truncate(self, backend, params):
@@ -78,8 +71,7 @@ class TestHOTP(object):
         hotp_value = params["hotp"]
 
         hotp = HOTP(secret, 6, SHA1(), backend)
-
-        assert hotp.verify(hotp_value, counter) is None
+        hotp.verify(hotp_value, counter)
 
     def test_invalid_verify(self, backend):
         secret = b"12345678901234567890"
@@ -94,7 +86,7 @@ class TestHOTP(object):
         secret = b"12345678901234567890"
 
         with pytest.raises(TypeError):
-            HOTP(secret, b"foo", SHA1(), backend)
+            HOTP(secret, b"foo", SHA1(), backend)  # type: ignore[arg-type]
 
     def test_get_provisioning_uri(self, backend):
         secret = b"12345678901234567890"
@@ -102,18 +94,16 @@ class TestHOTP(object):
 
         assert hotp.get_provisioning_uri("Alice Smith", 1, None) == (
             "otpauth://hotp/Alice%20Smith?digits=6&secret=GEZDGNBV"
-            "GY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&counter=1")
+            "GY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&counter=1"
+        )
 
-        assert hotp.get_provisioning_uri("Alice Smith", 1, 'Foo') == (
+        assert hotp.get_provisioning_uri("Alice Smith", 1, "Foo") == (
             "otpauth://hotp/Foo:Alice%20Smith?digits=6&secret=GEZD"
             "GNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&issuer=Foo"
-            "&counter=1")
+            "&counter=1"
+        )
 
-
-def test_invalid_backend():
-    secret = b"12345678901234567890"
-
-    pretend_backend = object()
-
-    with raises_unsupported_algorithm(_Reasons.BACKEND_MISSING_INTERFACE):
-        HOTP(secret, 8, hashes.SHA1(), pretend_backend)
+    def test_buffer_protocol(self, backend):
+        key = bytearray(b"a long key with lots of entropy goes here")
+        hotp = HOTP(key, 6, SHA1(), backend)
+        assert hotp.generate(10) == b"559978"
