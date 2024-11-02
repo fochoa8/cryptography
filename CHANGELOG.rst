@@ -1,6 +1,8 @@
 Changelog
 =========
 
+<<<<<<< HEAD
+=======
 .. _v44-0-0:
 
 44.0.0 - `main`_
@@ -1700,15 +1702,20 @@ Changelog
 
 .. _v1-5-3:
 
+>>>>>>> main
 1.5.3 - 2016-11-05
 ~~~~~~~~~~~~~~~~~~
 
 * **SECURITY ISSUE**: Fixed a bug where ``HKDF`` would return an empty
   byte-string if used with a ``length`` less than ``algorithm.digest_size``.
+<<<<<<< HEAD
+  Credit to **Markus Döring** for reporting the issue.
+=======
   Credit to **Markus Döring** for reporting the issue. *CVE-2016-9243*
 
 
 .. _v1-5-2:
+>>>>>>> main
 
 1.5.2 - 2016-09-26
 ~~~~~~~~~~~~~~~~~~
@@ -1716,8 +1723,11 @@ Changelog
 * Updated Windows and OS X wheels to be compiled against OpenSSL 1.0.2j.
 
 
+<<<<<<< HEAD
+=======
 .. _v1-5-1:
 
+>>>>>>> main
 1.5.1 - 2016-09-22
 ~~~~~~~~~~~~~~~~~~
 
@@ -1729,9 +1739,12 @@ Changelog
   OpenSSL 1.0.2i.
 
 
+<<<<<<< HEAD
+=======
 
 .. _v1-5:
 
+>>>>>>> main
 1.5 - 2016-08-26
 ~~~~~~~~~~~~~~~~
 

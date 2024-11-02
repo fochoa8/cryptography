@@ -472,6 +472,31 @@ static const long Cryptography_HAS_SET_CERT_CB = 1;
 static const long Cryptography_HAS_GET_EXTMS_SUPPORT = 1;
 #endif
 
+<<<<<<< HEAD
+
+/* In OpenSSL 1.0.2i+ the handling of COMP_METHOD when OPENSSL_NO_COMP was
+   changed and we no longer need to typedef void */
+#if (defined(OPENSSL_NO_COMP) && CRYPTOGRAPHY_OPENSSL_LESS_THAN_102I) || \
+    defined(LIBRESSL_VERSION_NUMBER)
+static const long Cryptography_HAS_COMPRESSION = 0;
+typedef void COMP_METHOD;
+#else
+static const long Cryptography_HAS_COMPRESSION = 1;
+#endif
+
+#if defined(SSL_CTRL_GET_SERVER_TMP_KEY)
+static const long Cryptography_HAS_GET_SERVER_TMP_KEY = 1;
+#else
+static const long Cryptography_HAS_GET_SERVER_TMP_KEY = 0;
+long (*SSL_get_server_tmp_key)(SSL *, EVP_PKEY **) = NULL;
+#endif
+
+static const long Cryptography_HAS_SSL_CTX_SET_CLIENT_CERT_ENGINE = 1;
+
+static const long Cryptography_HAS_SSL_CTX_CLEAR_OPTIONS = 1;
+
+=======
+>>>>>>> main
 /* in OpenSSL 1.1.0 the SSL_ST values were renamed to TLS_ST and several were
    removed */
 #if CRYPTOGRAPHY_IS_LIBRESSL || CRYPTOGRAPHY_IS_BORINGSSL

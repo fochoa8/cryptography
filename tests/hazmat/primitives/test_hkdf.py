@@ -131,6 +131,17 @@ class TestHKDF:
 
         assert hkdf.derive(ikm) == binascii.unhexlify(vector["okm"])
 
+    def test_derive_short_output(self, backend):
+        hkdf = HKDF(
+            hashes.SHA256(),
+            4,
+            salt=None,
+            info=None,
+            backend=backend
+        )
+
+        assert hkdf.derive(b"\x01" * 16) == b"gJ\xfb{"
+
 
 class TestHKDFExpand:
     def test_derive(self, backend):

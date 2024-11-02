@@ -141,6 +141,23 @@ class Backend:
     def pbkdf2_hmac_supported(self, algorithm: hashes.HashAlgorithm) -> bool:
         return self.hmac_supported(algorithm)
 
+<<<<<<< HEAD
+    def derive_pbkdf2_hmac(self, algorithm, length, salt, iterations,
+                           key_material):
+        buf = self._ffi.new("unsigned char[]", length)
+        evp_md = self._lib.EVP_get_digestbyname(
+            algorithm.name.encode("ascii"))
+        self.openssl_assert(evp_md != self._ffi.NULL)
+        res = self._lib.PKCS5_PBKDF2_HMAC(
+            key_material,
+            len(key_material),
+            salt,
+            len(salt),
+            iterations,
+            evp_md,
+            length,
+            buf
+=======
     def _consume_errors(self) -> list[rust_openssl.OpenSSLError]:
         return rust_openssl.capture_error_stack()
 
@@ -157,6 +174,7 @@ class Backend:
                 hashes.SHA384,
                 hashes.SHA512,
             ),
+>>>>>>> main
         )
 
     def rsa_padding_supported(self, padding: AsymmetricPadding) -> bool:

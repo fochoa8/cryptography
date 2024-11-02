@@ -12,6 +12,10 @@ __all__ = [
 
 __version__ = "44.0.0.dev1"
 
+<<<<<<< HEAD
+__version__ = "1.5.3"
+=======
+>>>>>>> main
 
 __author__ = "The Python Cryptographic Authority and individual contributors"
 __copyright__ = f"Copyright 2013-2024 {__author__}"
