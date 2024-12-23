@@ -28,7 +28,7 @@ charset-normalizer==3.4.0
     # via requests
 check-sdist==1.2.0 ; python_full_version >= '3.8'
     # via cryptography (pyproject.toml)
-click==8.1.7
+click==8.1.8
     # via cryptography (pyproject.toml)
 colorama==0.4.6 ; (platform_system != 'Windows' and sys_platform == 'win32') or platform_system == 'Windows' or os_name == 'nt'
     # via
